@@ -1,0 +1,3 @@
+	/* BUG */
+	tp.c_iflag &= ~ISTRIP;
+https://stackoverflow.com/questions/8606291/reading-raw-bytes-from-a-serial-port
