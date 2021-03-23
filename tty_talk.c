@@ -33,9 +33,11 @@
 #include <string.h>
 #include <errno.h>
 #include <signal.h>
+#ifdef DEVTAG
 #include "devtag-allinone.h"
-
-#define VERSION "1.8 110628"
+#endif
+//#define VERSION "1.8 110628"
+#define VERSION "1.9 210323"
 #define END_OF_FILE 26
 #define CTRLD  4
 #define P_LOCK "/var/lock"
@@ -52,11 +54,13 @@ void usage(void)
   printf("\ntty_talk version %s\n", VERSION);
   
   printf("\ntty_talk sends query to terminal device and waits for it's response\n");
-  printf("A response is teminated with EOF (0x4)\n");
+  printf("A response is teminated with EOF (0x4) or OK\n");
   printf("tty_talk [-BAUDRATE] device command\n");
-  printf(" Valid baudrates 4800, 9600 (Default), 19200, 38400 bps\n");
+  printf(" Valid baudrates 4800, 9600, 19200, 38400 57600 115200 (Default) bps\n");
+#ifdef DEVTAG
   printf("tty_talk can handle devtag\n");
-
+#endif
+  printf(" Example:\n  tty_talk /dev/ttyUSB0 upgr\n");
   exit(-1);
 }
 
@@ -133,7 +137,7 @@ int have_lock_dir(void)
 
 int get_lock()
 {
- struct stat stt;
+ struct stat;
   char buf[128];
   int fd, n = 0;
 
@@ -194,25 +198,36 @@ int main(int ac, char *av[])
 	} else if (strcmp(av[1], "-38400") == 0) {
 		baud = B38400;
 		av++; ac--;
+	} else if (strcmp(av[1], "-57600") == 0) {
+		baud = B57600;
+		av++; ac--;
+	} else if (strcmp(av[1], "-115200") == 0) {
+		baud = B115200;
+		av++; ac--;
 	} else
-		baud = B9600;
+		baud = B115200;
 
 	if(ac < 3) 
 	  usage();
-
+#ifdef DEVTAG
 	strncpy(dial_tty, devtag_get(av[1]), sizeof(dial_tty));
-
+#else
+	strncpy(dial_tty, av[1], sizeof(dial_tty));
+#endif
 	while (! get_lock()) {
 	    if(--retry == 0)
 	      exit(-1);
 	    sleep(1);
 	}
-
+#ifdef DEVTAG
 	if ((fd = open(devtag_get(av[1]), O_RDWR | O_NOCTTY | O_NONBLOCK)) < 0) {
+#else
+	if ((fd = open(av[1], O_RDWR | O_NOCTTY | O_NONBLOCK)) < 0) {
+#endif	  
 	  perror("bad terminal device, try another");
 	  exit(-1);
 	}
-	
+
 	fcntl(fd, F_GETFL);
 	fcntl(fd, F_SETFL, O_RDWR);
 
@@ -288,6 +303,9 @@ TABDLY BSDLY VTDLY FFDLY
 
 	while (!done && (res = read(fd, io, BUFSIZ)) > 0)  {
 	  int i;
+
+	  if(strncmp("OK", io, res))
+	    done = 1;
 
 	  for(i=0; !done && i < res; i++)  {
 	    if(io[i] == END_OF_FILE) 
