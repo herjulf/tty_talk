@@ -301,11 +301,16 @@ TABDLY BSDLY VTDLY FFDLY
 	
 	done = 0;
 
-	while (!done && (res = read(fd, io, BUFSIZ)) > 0)  {
+	while (!done && (res = read(fd, io, BUFSIZ)) >= 0)  {
 	  int i;
 
-	  if(strncmp("OK", io, res))
+	  if(res == 0)
+	    continue;
+
+	  if(!strncmp("OK", io, res)) {
+	    printf("OK\n");
 	    done = 1;
+	  }
 
 	  for(i=0; !done && i < res; i++)  {
 	    if(io[i] == END_OF_FILE) 
@@ -314,6 +319,7 @@ TABDLY BSDLY VTDLY FFDLY
 	      printf("%c", io[i]);
 	  }
 	}
+
 	if (tcsetattr(fd, TCSANOW, &old) < 0) {
 		perror("Couldn't restore term attributes");
 		exit(-1);
